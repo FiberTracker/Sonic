@@ -6,186 +6,109 @@
 <title>Sonic Telecom — Fiber Competitive Intelligence</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { height: 100%; overflow: hidden; }
-  body { font-family: 'Inter', -apple-system, sans-serif; background: #111; color: #CCCABC; display: flex; flex-direction: column; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
   #pw-overlay {
-    position: fixed; inset: 0; z-index: 10000;
-    background: #111; display: flex; align-items: center; justify-content: center;
+    position: fixed; inset: 0; z-index: 99999;
+    background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+    display: flex; align-items: center; justify-content: center;
   }
   #pw-overlay.hidden { display: none; }
   .pw-box {
-    background: #1a1a1a; border: 1px solid #333; border-radius: 12px;
-    padding: 40px; text-align: center; max-width: 360px; width: 90%;
+    background: #1E293B; border: 1px solid #334155; border-radius: 12px;
+    padding: 40px; width: 380px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5);
   }
-  .pw-box h2 { color: #CCCABC; font-size: 18px; margin-bottom: 8px; }
-  .pw-box p { color: #7A7870; font-size: 13px; margin-bottom: 20px; }
+  .pw-box h2 { color: #F1F5F9; font-size: 20px; font-weight: 600; margin-bottom: 6px; }
+  .pw-box p { color: #94A3B8; font-size: 13px; margin-bottom: 24px; }
   .pw-box input {
-    width: 100%; padding: 10px 14px; border: 1px solid #404040; border-radius: 8px;
-    background: #222; color: #CCCABC; font-size: 14px; text-align: center;
+    width: 100%; padding: 10px 14px; background: #0F172A; border: 1px solid #475569;
+    border-radius: 8px; color: #F1F5F9; font-size: 14px; outline: none;
   }
-  .pw-box input:focus { outline: none; border-color: #0C7EC6; }
-  .pw-box .error { color: #BD000C; font-size: 12px; margin-top: 8px; display: none; }
-  .topbar {
-    background: #1a1a1a; border-bottom: 1px solid #2a2a2a;
-    padding: 12px 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-    flex-shrink: 0;
-  }
-  .topbar h1 { font-size: 16px; font-weight: 700; color: #CCCABC; white-space: nowrap; }
-  .topbar h1 span { color: #0C7EC6; }
-  .tab-bar { display: flex; gap: 4px; margin-left: 24px; }
-  .tab-btn {
-    padding: 6px 14px; border-radius: 6px; border: 1px solid #333;
-    background: #222; color: #8E8D83; font-size: 12px; font-weight: 500;
-    cursor: pointer; transition: all 0.15s;
-  }
-  .tab-btn:hover { background: #2a2a2a; color: #CCCABC; }
-  .tab-btn.active { background: #0C7EC6; color: #fff; border-color: #0C7EC6; }
-  .tab-panel { display: none; flex: 1; min-height: 0; }
-  .tab-panel.active { display: flex; flex-direction: column; }
-  #map-panel { flex: 1; position: relative; overflow: hidden; }
-  #map { position: absolute; inset: 0; }
-  .map-controls {
-    position: absolute; top: 10px; right: 10px; z-index: 1000;
-    display: flex; flex-direction: column; gap: 8px; max-height: calc(100vh - 100px); overflow-y: auto;
-  }
-  .control-group {
-    background: rgba(26,26,26,0.95); border: 1px solid #333; border-radius: 8px;
-    padding: 10px; backdrop-filter: blur(8px);
-  }
-  .control-group h4 { font-size: 11px; color: #7A7870; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .layer-btn {
-    display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 4px;
-    cursor: pointer; font-size: 12px; color: #B8B3A2; transition: background 0.15s;
-  }
-  .layer-btn:hover { background: #2a2a2a; }
-  .layer-btn .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-  .layer-btn.active .dot { box-shadow: 0 0 4px currentColor; }
-  .layer-btn.inactive { opacity: 0.4; }
-  .layer-btn .size-hint { font-size: 9px; color: #5A5D5C; margin-left: auto; }
-  .region-btn {
-    display: block; width: 100%; padding: 5px 8px; border: none; border-radius: 4px;
-    background: transparent; color: #B8B3A2; font-size: 11px; text-align: left;
-    cursor: pointer; transition: background 0.15s;
-  }
-  .region-btn:hover { background: #2a2a2a; color: #CCCABC; }
-  .stats-bar {
-    position: absolute; bottom: 10px; left: 10px; z-index: 1000;
-    background: rgba(26,26,26,0.95); border: 1px solid #333; border-radius: 8px;
-    padding: 10px 14px; backdrop-filter: blur(8px); display: flex; gap: 20px; flex-wrap: wrap;
-  }
-  .stat { text-align: center; }
-  .stat .value { font-size: 18px; font-weight: 700; color: #0C7EC6; }
-  .stat .label { font-size: 10px; color: #7A7870; }
-  .content-panel {
-    padding: 24px; max-width: 1200px; margin: 0 auto;
-    flex: 1; overflow-y: auto;
-  }
-  .profile-card {
-    background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px;
-    padding: 20px; margin-bottom: 16px;
-  }
-  .profile-focus { border-color: #0C7EC6; border-width: 2px; }
-  .profile-table { width: 100%; border-collapse: collapse; }
-  .profile-table td { padding: 6px 8px; border-bottom: 1px solid #2a2a2a; font-size: 13px; }
-  .profile-table td.label { color: #7A7870; width: 160px; font-weight: 500; }
+  .pw-box input:focus { border-color: #0C7EC6; }
+  .pw-box .error { color: #F87171; font-size: 12px; margin-top: 8px; display: none; }
+  #map { height: 650px; width: 100%; border-radius: 12px; }
+  .leaflet-popup-content-wrapper { border-radius: 8px; }
+  .leaflet-popup-content { margin: 12px 16px; min-width: 280px; max-width: 380px; }
+  .tab-btn { transition: all 0.2s; cursor: pointer; border-bottom: 3px solid transparent; }
+  .tab-btn.active { border-bottom-color: #0C7EC6; color: #0C7EC6; font-weight: 600; }
+  .tab-btn:hover:not(.active) { color: #334155; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
   .source-tag {
-    font-size: 10px; color: #5A5D5C; background: #222; padding: 1px 6px;
+    font-size: 10px; color: #64748B; background: #F1F5F9; padding: 1px 6px;
     border-radius: 3px; margin-left: 4px;
   }
-  .key-diff, .growth-strategy, .ma-activity, .abs-history, .bead-status {
-    margin-top: 12px; padding: 10px; background: #222; border-radius: 6px;
-    font-size: 13px; line-height: 1.5;
-  }
-  .sources { margin-top: 12px; font-size: 12px; }
-  .sources ul { margin-top: 4px; padding-left: 18px; }
-  .sources li { margin: 2px 0; }
-  .sources a { color: #0C7EC6; text-decoration: none; }
-  .sources a:hover { text-decoration: underline; }
-  .comp-matrix, .scenario-table, .comps-table, .val-table, .exec-table {
-    width: 100%; border-collapse: collapse; margin: 12px 0;
-  }
-  .comp-matrix th, .scenario-table th, .comps-table th, .exec-table th {
-    background: #222; color: #B8B3A2; padding: 8px; font-size: 12px;
-    text-align: left; border-bottom: 2px solid #333;
-  }
-  .comp-matrix td, .scenario-table td, .comps-table td, .val-table td, .exec-table td {
-    padding: 7px 8px; border-bottom: 1px solid #2a2a2a; font-size: 13px;
-  }
-  .comp-matrix td.label, .val-table td.label { color: #7A7870; font-weight: 500; width: 140px; }
-  .valuation-section { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
-  .valuation-section h3 { color: #B98E2C; margin-bottom: 12px; }
-  .valuation-section h4 { color: #B8B3A2; margin: 16px 0 8px; font-size: 14px; }
-  .val-note { font-size: 11px; color: #5A5D5C; margin-top: 12px; line-height: 1.5; font-style: italic; }
-  .exec-section { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
-  .exec-section h3 { margin-bottom: 12px; }
-  .section-header { font-size: 18px; font-weight: 700; margin: 0 0 16px; color: #CCCABC; }
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: #111; }
-  ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-  .footer {
-    text-align: center; padding: 16px; font-size: 10px; color: #5A5D5C;
-    border-top: 1px solid #2a2a2a; margin-top: 24px;
-  }
-  .loading-indicator {
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    z-index: 999; background: rgba(26,26,26,0.9); padding: 12px 20px;
-    border-radius: 8px; color: #B8B3A2; font-size: 13px; display: none;
+  @media (max-width: 768px) {
+    body { padding: 8px; }
+    #map { height: 50vh; min-height: 300px; border-radius: 8px; }
+    .leaflet-popup-content { min-width: 240px; margin: 8px 12px; font-size: 13px; }
   }
 </style>
 </head>
-<body>
+<body class="bg-gray-50 min-h-screen p-2 md:p-4">
 
+<!-- Password Gate -->
 <div id="pw-overlay">
   <div class="pw-box">
     <h2>Sonic Telecom</h2>
     <p>Fiber Competitive Intelligence</p>
-    <input type="password" id="pw-input" placeholder="Enter access code" autofocus>
+    <input type="password" id="pw-input" placeholder="Enter access code" autofocus
+      onkeydown="if(event.key==='Enter')checkPw()">
     <div class="error" id="pw-error">Incorrect code</div>
   </div>
 </div>
 
-<div class="topbar">
-  <h1><span>Sonic</span> FiberComp</h1>
-  <div class="tab-bar">
-    <button class="tab-btn active" data-tab="map">GIS Map</button>
-    <button class="tab-btn" data-tab="profile">Operator Profiles</button>
-    <button class="tab-btn" data-tab="valuation">Valuation & Comps</button>
-    <button class="tab-btn" data-tab="competitive">Competitive Matrix</button>
-  </div>
-</div>
+<!-- Main App -->
+<div id="app" style="display:none;">
 
-<div id="map-panel" class="tab-panel active" data-tab="map">
-  <div id="map"></div>
-  <div class="loading-indicator" id="loading">Loading BDC data...</div>
-  <div class="map-controls">
-    <div class="control-group">
-      <h4>BDC Layers (FTTP)</h4>
-      <div id="layer-toggles"></div>
-    </div>
-    <div class="control-group">
-      <h4>Regions</h4>
-      <div id="region-nav"></div>
+  <!-- Header -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-3">
+    <div class="flex items-center justify-between flex-wrap gap-3">
+      <div>
+        <h1 class="text-xl font-bold text-gray-900">Sonic Telecom <span class="text-sm font-normal text-gray-400">FiberComp</span></h1>
+        <p class="text-xs text-gray-500 mt-1">FCC BDC J25 (Jun 2025) | Census 2020 | Public filings</p>
+      </div>
+      <div class="flex gap-1">
+        <button class="tab-btn px-3 py-2 text-sm text-gray-500 active" data-tab="map">GIS Map</button>
+        <button class="tab-btn px-3 py-2 text-sm text-gray-500" data-tab="profile">Operator Profiles</button>
+        <button class="tab-btn px-3 py-2 text-sm text-gray-500" data-tab="valuation">Valuation & Comps</button>
+        <button class="tab-btn px-3 py-2 text-sm text-gray-500" data-tab="competitive">Competitive Matrix</button>
+      </div>
     </div>
   </div>
-  <div class="stats-bar" id="stats-bar"></div>
-</div>
 
-<div class="tab-panel content-panel" data-tab="profile">
-  <div class="section-header">Operator Profiles</div>
-  <div id="profiles-container"></div>
-</div>
+  <!-- MAP TAB -->
+  <div class="tab-content active" data-tab="map">
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3" id="stat-cards"></div>
 
-<div class="tab-panel content-panel" data-tab="valuation">
-  <div class="section-header">Valuation Context & Deal Comps</div>
-  <div id="valuation-container"></div>
-</div>
+    <!-- Map + Controls -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3">
+      <div class="flex flex-wrap gap-2 mb-3">
+        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide self-center mr-2">BDC Layers</div>
+        <div id="layer-toggles" class="flex flex-wrap gap-2"></div>
+        <div class="ml-auto flex flex-wrap gap-1" id="region-nav"></div>
+      </div>
+      <div id="map"></div>
+    </div>
+  </div>
 
-<div class="tab-panel content-panel" data-tab="competitive">
-  <div class="section-header">Competitive Comparison</div>
-  <div id="comp-container"></div>
+  <!-- PROFILE TAB -->
+  <div class="tab-content" data-tab="profile">
+    <div id="profiles-container"></div>
+  </div>
+
+  <!-- VALUATION TAB -->
+  <div class="tab-content" data-tab="valuation">
+    <div id="valuation-container"></div>
+  </div>
+
+  <!-- COMPETITIVE TAB -->
+  <div class="tab-content" data-tab="competitive">
+    <div id="comp-container"></div>
+  </div>
+
 </div>
 
 <script src="data.js"></script>
@@ -203,32 +126,31 @@ const bdcData = {};
 const bdcLayers = {};
 let map;
 
+/* ---- Password ---- */
 function simpleHash(s) {
   var h = 0x5f2a1e3d;
-  for (var i = 0; i < s.length; i++) {
-    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  }
+  for (var i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0; }
   return (h >>> 0).toString(16).padStart(8, '0') + h.toString(16).slice(-8);
 }
-
-document.getElementById('pw-input').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') {
-    if (simpleHash(this.value) === '645e2cbf645e2cbf') {
-      document.getElementById('pw-overlay').classList.add('hidden');
-      sessionStorage.setItem('sonic_auth', '1');
-      initApp();
-    } else {
-      document.getElementById('pw-error').style.display = 'block';
-      this.value = '';
-    }
+function checkPw() {
+  const v = document.getElementById('pw-input').value;
+  if (simpleHash(v) === '645e2cbf645e2cbf') {
+    document.getElementById('pw-overlay').classList.add('hidden');
+    document.getElementById('app').style.display = '';
+    sessionStorage.setItem('sonic_auth', '1');
+    initApp();
+  } else {
+    document.getElementById('pw-error').style.display = 'block';
+    document.getElementById('pw-input').value = '';
   }
-});
-
+}
 if (sessionStorage.getItem('sonic_auth') === '1') {
   document.getElementById('pw-overlay').classList.add('hidden');
+  document.getElementById('app').style.display = '';
   initApp();
 }
 
+/* ---- Init ---- */
 function initApp() {
   initMap();
   initTabs();
@@ -240,104 +162,113 @@ function initApp() {
 
 function initMap() {
   map = L.map('map', { zoomControl: true }).setView([37.7749, -122.4194], 10);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OSM | CARTO',
     maxZoom: 18,
   }).addTo(map);
   setTimeout(() => map.invalidateSize(), 200);
 
-  const regionNav = document.getElementById('region-nav');
+  // Region nav
+  const nav = document.getElementById('region-nav');
   REGIONS.forEach(r => {
     const btn = document.createElement('button');
-    btn.className = 'region-btn';
+    btn.className = 'px-2 py-1 text-xs rounded-md bg-gray-100 hover:bg-gray-200 text-gray-600 transition';
     btn.textContent = r.name;
     btn.title = r.desc;
     btn.addEventListener('click', () => map.flyTo(r.center, r.zoom, { duration: 1 }));
-    regionNav.appendChild(btn);
+    nav.appendChild(btn);
   });
 }
 
+/* ---- BDC Layers ---- */
 function loadBdcLayers() {
-  const toggleContainer = document.getElementById('layer-toggles');
-  const providerOrder = ['sonic', 'att', 'frontier', 'comcast', 'race'];
+  const container = document.getElementById('layer-toggles');
+  const order = ['sonic', 'att', 'frontier', 'comcast', 'race'];
 
-  providerOrder.forEach(key => {
+  order.forEach(key => {
     const prov = PROVIDERS[key];
     if (!prov) return;
-    const bdcInfo = BDC_FILES[key];
+    const info = BDC_FILES[key];
 
-    const btn = document.createElement('div');
-    btn.className = 'layer-btn inactive';
+    const btn = document.createElement('button');
+    btn.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition';
     btn.dataset.key = key;
-    btn.innerHTML = `<span class="dot" style="background:${prov.color};color:${prov.color};"></span>${prov.shortName}<span class="size-hint">${bdcInfo.size}</span>`;
+    btn.style.borderColor = '#E2E8F0';
+    btn.style.color = '#64748B';
+    btn.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:${prov.color};display:inline-block;"></span>${prov.shortName} <span class="text-gray-400 ml-1">${info.size}</span>`;
     btn.addEventListener('click', () => toggleLayer(key, btn));
-    toggleContainer.appendChild(btn);
+    container.appendChild(btn);
 
-    // Auto-load Sonic + Race (small files)
-    if (key === 'sonic' || key === 'race') {
-      loadBdcFile(key, btn, key === 'sonic');
+    // Auto-load Sonic
+    if (key === 'sonic') {
+      loadBdcFile(key, btn, true);
     }
   });
 }
 
 function loadBdcFile(key, btn, autoEnable) {
-  const bdcInfo = BDC_FILES[key];
+  const info = BDC_FILES[key];
   const prov = PROVIDERS[key];
 
   if (bdcData[key]) {
-    if (autoEnable && !map.hasLayer(bdcLayers[key])) {
-      bdcLayers[key].addTo(map);
-      btn.classList.add('active');
-      btn.classList.remove('inactive');
-      updateStats();
-    }
+    if (autoEnable) enableLayer(key, btn);
     return;
   }
 
-  btn.innerHTML = `<span class="dot" style="background:${prov.color};color:${prov.color};"></span>${prov.shortName}<span class="size-hint">loading...</span>`;
+  btn.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:${prov.color};display:inline-block;"></span>${prov.shortName} <span class="text-gray-400 ml-1">loading...</span>`;
 
   const script = document.createElement('script');
-  script.src = bdcInfo.file;
+  script.src = info.file;
   script.onload = () => {
-    const varName = 'BDC_' + key.toUpperCase();
-    const data = window[varName];
+    const data = window['BDC_' + key.toUpperCase()];
     if (data) {
       bdcData[key] = data;
-      const layer = createBdcLayer(data, prov);
-      bdcLayers[key] = layer;
-
-      btn.innerHTML = `<span class="dot" style="background:${prov.color};color:${prov.color};"></span>${prov.shortName}<span class="size-hint">${bdcInfo.size}</span>`;
-
-      if (autoEnable) {
-        layer.addTo(map);
-        btn.classList.add('active');
-        btn.classList.remove('inactive');
-      }
-      updateStats();
+      bdcLayers[key] = createBdcLayer(data, prov);
+      btn.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:${prov.color};display:inline-block;"></span>${prov.shortName} <span class="text-gray-400 ml-1">${info.size}</span>`;
+      if (autoEnable) enableLayer(key, btn);
     }
   };
   script.onerror = () => {
-    btn.innerHTML = `<span class="dot" style="background:#555;"></span>${prov.shortName}<span class="size-hint">unavailable</span>`;
-    btn.style.pointerEvents = 'none';
+    btn.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:#ccc;display:inline-block;"></span>${prov.shortName} <span class="text-red-400 ml-1">unavailable</span>`;
+    btn.disabled = true;
   };
   document.body.appendChild(script);
+}
+
+function enableLayer(key, btn) {
+  if (!bdcLayers[key]) return;
+  bdcLayers[key].addTo(map);
+  const prov = PROVIDERS[key];
+  btn.style.borderColor = prov.color;
+  btn.style.color = prov.color;
+  btn.style.background = prov.color + '10';
+  updateStats();
+}
+
+function disableLayer(key, btn) {
+  if (!bdcLayers[key]) return;
+  map.removeLayer(bdcLayers[key]);
+  btn.style.borderColor = '#E2E8F0';
+  btn.style.color = '#64748B';
+  btn.style.background = '';
+  updateStats();
 }
 
 function createBdcLayer(geojson, provider) {
   return L.geoJSON(geojson, {
     style: (feature) => {
       const cov = feature.properties.coveragePct || 0;
-      const opacity = Math.min(0.15 + cov / 200, 0.6);
+      const opacity = Math.min(0.25 + cov / 150, 0.75);
       return {
         fillColor: provider.color,
         fillOpacity: opacity,
-        color: provider.color,
-        weight: 0.5,
-        opacity: 0.4,
+        color: '#fff',
+        weight: 1,
+        opacity: 0.8,
       };
     },
     onEachFeature: (feature, layer) => {
-      layer.bindPopup(buildBdcPopup(feature, provider.name, provider.color), { maxWidth: 350 });
+      layer.bindPopup(buildBdcPopup(feature, provider.name, provider.color), { maxWidth: 380 });
     },
   });
 }
@@ -347,85 +278,187 @@ function toggleLayer(key, btn) {
     loadBdcFile(key, btn, true);
     return;
   }
-  if (!bdcLayers[key]) return;
-
   if (map.hasLayer(bdcLayers[key])) {
-    map.removeLayer(bdcLayers[key]);
-    btn.classList.remove('active');
-    btn.classList.add('inactive');
+    disableLayer(key, btn);
   } else {
-    bdcLayers[key].addTo(map);
-    btn.classList.add('active');
-    btn.classList.remove('inactive');
+    enableLayer(key, btn);
   }
-  updateStats();
 }
 
+/* ---- Stats ---- */
 function updateStats() {
-  const bar = document.getElementById('stats-bar');
-  let html = '';
+  const container = document.getElementById('stat-cards');
   const active = Object.keys(bdcLayers).filter(k => map.hasLayer(bdcLayers[k]));
 
+  if (!active.length) {
+    container.innerHTML = '<div class="col-span-full text-center text-xs text-gray-400 py-2">Click provider buttons to show BDC coverage layers</div>';
+    return;
+  }
+
+  let html = '';
   active.forEach(key => {
     const data = bdcData[key];
-    if (!data) return;
     const prov = PROVIDERS[key];
+    if (!data) return;
     let bsls = 0, hu = 0;
-    data.features.forEach(f => {
-      bsls += f.properties.bsls || 0;
-      hu += f.properties.hu100 || 0;
-    });
+    data.features.forEach(f => { bsls += f.properties.bsls || 0; hu += f.properties.hu100 || 0; });
     const cov = hu > 0 ? (bsls / hu * 100).toFixed(1) : 0;
-    html += `<div class="stat">
-      <div class="value" style="color:${prov.color}">${(bsls/1000).toFixed(0)}K</div>
-      <div class="label">${prov.shortName} FTTP BSLs</div>
-    </div>
-    <div class="stat">
-      <div class="value" style="color:${prov.color}">${data.features.length.toLocaleString()}</div>
-      <div class="label">Block Groups</div>
-    </div>
-    <div class="stat">
-      <div class="value" style="color:${prov.color}">${cov}%</div>
-      <div class="label">Coverage</div>
+
+    html += `<div class="bg-white rounded-lg border-l-4 p-3 shadow-sm" style="border-left-color:${prov.color}">
+      <div class="text-xs text-gray-500">${prov.shortName} FTTP</div>
+      <div class="text-lg font-bold" style="color:${prov.color}">${(bsls/1000).toFixed(0)}K <span class="text-xs font-normal text-gray-400">BSLs</span></div>
+      <div class="text-xs text-gray-400">${data.features.length.toLocaleString()} BGs · ${cov}% coverage</div>
     </div>`;
-  });
-
-  if (!html) html = '<div class="stat"><div class="label">Click BDC layers to toggle</div></div>';
-  bar.innerHTML = html;
-}
-
-function initTabs() {
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-      btn.classList.add('active');
-      const panel = document.querySelector(`.tab-panel[data-tab="${btn.dataset.tab}"]`);
-      if (panel) {
-        panel.classList.add('active');
-        if (btn.dataset.tab === 'map') setTimeout(() => map.invalidateSize(), 100);
-      }
-    });
-  });
-}
-
-function initProfiles() {
-  const container = document.getElementById('profiles-container');
-  const order = ['sonic', 'att', 'frontier', 'comcast', 'race'];
-  let html = buildExecHtml();
-  order.forEach(key => {
-    const profile = OPERATOR_PROFILES[key];
-    if (profile) html += buildProfileHtml(profile, key);
   });
   container.innerHTML = html;
 }
 
-function initValuation() {
-  document.getElementById('valuation-container').innerHTML = buildValuationHtml();
+/* ---- Tabs ---- */
+function initTabs() {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelector(`.tab-content[data-tab="${btn.dataset.tab}"]`).classList.add('active');
+      if (btn.dataset.tab === 'map') setTimeout(() => map.invalidateSize(), 100);
+    });
+  });
 }
 
+/* ---- Profile Tab ---- */
+function initProfiles() {
+  const container = document.getElementById('profiles-container');
+  const order = ['sonic', 'att', 'frontier', 'comcast', 'race'];
+  let html = buildExecHtmlLight();
+
+  order.forEach(key => {
+    const profile = OPERATOR_PROFILES[key];
+    if (profile) html += buildProfileHtmlLight(profile, key);
+  });
+  container.innerHTML = html;
+}
+
+function buildExecHtmlLight() {
+  let html = `<div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-4">
+    <h3 class="text-base font-bold text-gray-900 mb-3">Key Executives — Sonic Telecom</h3>
+    <table class="w-full text-sm">
+      <thead><tr class="border-b border-gray-200">
+        <th class="text-left py-2 text-gray-500 font-medium">Name</th>
+        <th class="text-left py-2 text-gray-500 font-medium">Title</th>
+        <th class="text-left py-2 text-gray-500 font-medium">Notes</th>
+      </tr></thead><tbody>`;
+  KEY_EXECUTIVES.forEach(e => {
+    html += `<tr class="border-b border-gray-100"><td class="py-2 font-semibold text-gray-900">${e.name}</td><td class="py-2 text-gray-700">${e.title}</td><td class="py-2 text-gray-500">${e.note}</td></tr>`;
+  });
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+function buildProfileHtmlLight(profile, key) {
+  const isSonic = key === 'sonic';
+  const color = PROVIDERS[key]?.color || '#333';
+  const borderClass = isSonic ? `border-2` : 'border';
+
+  let html = `<div class="bg-white rounded-xl ${borderClass} shadow-sm p-5 mb-4" style="${isSonic ? 'border-color:' + color : 'border-color:#E5E7EB'}">
+    <h3 class="text-base font-bold mb-3" style="color:${color}">${profile.name}</h3>
+    <table class="w-full text-sm">`;
+
+  const rows = [
+    ['HQ', profile.hq],
+    ['Founded', profile.founded],
+    profile.founder ? ['Founder', profile.founder] : null,
+    ['Ownership', profile.ownership],
+    profile.ceo ? ['CEO', profile.ceo] : null,
+    profile.cfo ? ['CFO', profile.cfo] : null,
+    ['Technology', profile.technology],
+    ['Max Speed', profile.speeds],
+    ['Pricing', profile.pricing],
+    profile.subscribers ? ['Subscribers', profile.subscribers] : null,
+    profile.revenue ? ['Revenue', profile.revenue] : null,
+    profile.ebitda ? ['EBITDA', `~$${profile.ebitda}M <span class="source-tag">${profile.ebitdaSource || ''}</span>`] : null,
+    profile.homesPassedEst ? ['Homes Passed (Est.)', profile.homesPassedEst] : null,
+    ['Markets', profile.markets],
+  ].filter(Boolean);
+
+  rows.forEach(([label, value]) => {
+    html += `<tr class="border-b border-gray-100"><td class="py-2 text-gray-500 font-medium w-40">${label}</td><td class="py-2 text-gray-900">${value}</td></tr>`;
+  });
+  html += `</table>`;
+
+  if (isSonic) {
+    const sections = [
+      ['Key Differentiators', profile.keyDiff],
+      ['Growth Strategy', profile.growthStrategy],
+      ['M&A Activity', profile.maActivity],
+      ['ABS/Securitization', profile.absHistory],
+      ['BEAD', profile.beadStatus],
+    ].filter(([, v]) => v);
+
+    sections.forEach(([title, text]) => {
+      html += `<div class="mt-3 p-3 bg-gray-50 rounded-lg text-sm text-gray-700"><strong class="text-gray-900">${title}:</strong> ${text}</div>`;
+    });
+  }
+
+  if (profile.sources) {
+    html += `<div class="mt-3 text-xs text-gray-500"><strong>Sources:</strong><ul class="mt-1 ml-4 list-disc">`;
+    profile.sources.forEach(s => { html += `<li><a href="${s.url}" target="_blank" class="text-blue-600 hover:underline">${s.text}</a></li>`; });
+    html += `</ul></div>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+/* ---- Valuation Tab ---- */
+function initValuation() {
+  const v = VALUATION_CONTEXT;
+  let html = `<div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-4">
+    <h3 class="text-base font-bold text-amber-700 mb-3">Valuation Context — Sonic Telecom</h3>
+    <table class="w-full text-sm mb-4">
+      <tr class="border-b border-gray-100"><td class="py-2 text-gray-500 font-medium w-40">EBITDA</td><td class="py-2 text-gray-900">~$${v.sonicMetrics.ebitda}M <span class="source-tag">${v.sonicMetrics.ebitdaSource}</span></td></tr>
+      <tr class="border-b border-gray-100"><td class="py-2 text-gray-500 font-medium">Revenue Range</td><td class="py-2 text-gray-900">$${v.sonicMetrics.revenueRange}M <span class="source-tag">${v.sonicMetrics.revenueSource}</span></td></tr>
+      <tr class="border-b border-gray-100"><td class="py-2 text-gray-500 font-medium">Implied Valuation</td><td class="py-2 text-gray-900">$${v.sonicMetrics.impliedValue}M <span class="source-tag">${v.sonicMetrics.impliedSource}</span></td></tr>
+    </table>
+
+    <h4 class="text-sm font-bold text-gray-700 mb-2">Scenario Analysis (at $${v.sonicMetrics.ebitda}M EBITDA)</h4>
+    <table class="w-full text-sm mb-4">
+      <thead><tr class="border-b border-gray-200"><th class="text-left py-2 text-gray-500 font-medium">Scenario</th><th class="text-left py-2 text-gray-500 font-medium">EV ($M)</th></tr></thead>
+      <tbody>`;
+  v.scenarioAnalysis.forEach(s => { html += `<tr class="border-b border-gray-100"><td class="py-2 text-gray-700">${s.label}</td><td class="py-2 font-semibold text-gray-900">$${s.ev}M</td></tr>`; });
+  html += `</tbody></table>
+
+    <h4 class="text-sm font-bold text-gray-700 mb-2">Recent Fiber Comps</h4>
+    <table class="w-full text-sm">
+      <thead><tr class="border-b border-gray-200"><th class="text-left py-2 text-gray-500 font-medium">Transaction</th><th class="text-left py-2 text-gray-500 font-medium">$/HHP</th><th class="text-left py-2 text-gray-500 font-medium">Multiple</th><th class="text-left py-2 text-gray-500 font-medium">Date</th></tr></thead>
+      <tbody>`;
+  v.comps.forEach(c => { html += `<tr class="border-b border-gray-100"><td class="py-2 text-gray-700">${c.deal}</td><td class="py-2 text-gray-900">${c.dollarPerHhp ? '$' + c.dollarPerHhp.toLocaleString() : '—'}</td><td class="py-2 font-semibold text-gray-900">${c.multiple}</td><td class="py-2 text-gray-500">${c.date}</td></tr>`; });
+  html += `</tbody></table>
+    <p class="mt-3 text-xs text-gray-400 italic">Note: Fiber platform valuations have ranged 8-12x EBITDA for scaled operators. At $80M EBITDA, the $475M Getlatka figure implies ~6x — below market, suggesting either stale data or a pre-expansion valuation. All financials are third-party estimates for a private company.</p>
+  </div>`;
+  document.getElementById('valuation-container').innerHTML = html;
+}
+
+/* ---- Competitive Tab ---- */
 function initCompMatrix() {
-  document.getElementById('comp-container').innerHTML = buildCompMatrixHtml();
+  const m = COMP_MATRIX;
+  let html = `<div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+    <h3 class="text-base font-bold text-gray-900 mb-3">Competitive Comparison</h3>
+    <div class="overflow-x-auto"><table class="w-full text-sm">
+      <thead><tr class="border-b border-gray-200">`;
+  m.headers.forEach(h => { html += `<th class="text-left py-2 px-2 text-gray-500 font-medium">${h}</th>`; });
+  html += `</tr></thead><tbody>`;
+  m.rows.forEach(row => {
+    html += `<tr class="border-b border-gray-100">`;
+    row.forEach((cell, i) => {
+      html += i === 0
+        ? `<td class="py-2 px-2 text-gray-500 font-medium">${cell}</td>`
+        : `<td class="py-2 px-2 text-gray-900">${cell}</td>`;
+    });
+    html += `</tr>`;
+  });
+  html += `</tbody></table></div></div>`;
+  document.getElementById('comp-container').innerHTML = html;
 }
 </script>
 
