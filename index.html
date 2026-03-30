@@ -116,11 +116,11 @@
 
 <script>
 const BDC_FILES = {
-  sonic: { file: 'bdc_output/sonic_bdc.js', size: '3.6 MB' },
-  att: { file: 'bdc_output/att_bdc.js', size: '10 MB' },
-  comcast: { file: 'bdc_output/comcast_bdc.js', size: '2.7 MB' },
-  frontier: { file: 'bdc_output/frontier_bdc.js', size: '6.5 MB' },
-  race: { file: 'bdc_output/race_bdc.js', size: '2.3 MB' },
+  sonic: { file: 'bdc_output/sonic_bdc.js', size: '600 KB' },
+  att: { file: 'bdc_output/att_bdc.js', size: '1.5 MB' },
+  comcast: { file: 'bdc_output/comcast_bdc.js', size: '332 KB' },
+  frontier: { file: 'bdc_output/frontier_bdc.js', size: '805 KB' },
+  race: { file: 'bdc_output/race_bdc.js', size: '219 KB' },
 };
 const bdcData = {};
 const bdcLayers = {};
@@ -199,9 +199,11 @@ function loadBdcLayers() {
     btn.addEventListener('click', () => toggleLayer(key, btn));
     container.appendChild(btn);
 
-    // Auto-load Sonic
+    // Auto-load Sonic + Race (focus providers), preload others
     if (key === 'sonic') {
       loadBdcFile(key, btn, true);
+    } else {
+      loadBdcFile(key, btn, false);
     }
   });
 }
