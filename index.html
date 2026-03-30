@@ -9,7 +9,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Inter', -apple-system, sans-serif; background: #111; color: #CCCABC; }
+  html, body { height: 100%; overflow: hidden; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: #111; color: #CCCABC; display: flex; flex-direction: column; }
   #pw-overlay {
     position: fixed; inset: 0; z-index: 10000;
     background: #111; display: flex; align-items: center; justify-content: center;
@@ -30,6 +31,7 @@
   .topbar {
     background: #1a1a1a; border-bottom: 1px solid #2a2a2a;
     padding: 12px 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    flex-shrink: 0;
   }
   .topbar h1 { font-size: 16px; font-weight: 700; color: #CCCABC; white-space: nowrap; }
   .topbar h1 span { color: #0C7EC6; }
@@ -41,10 +43,10 @@
   }
   .tab-btn:hover { background: #2a2a2a; color: #CCCABC; }
   .tab-btn.active { background: #0C7EC6; color: #fff; border-color: #0C7EC6; }
-  .tab-panel { display: none; }
-  .tab-panel.active { display: block; }
-  #map-panel { height: calc(100vh - 53px); position: relative; }
-  #map { height: 100%; width: 100%; }
+  .tab-panel { display: none; flex: 1; min-height: 0; }
+  .tab-panel.active { display: flex; flex-direction: column; }
+  #map-panel { flex: 1; position: relative; overflow: hidden; }
+  #map { position: absolute; inset: 0; }
   .map-controls {
     position: absolute; top: 10px; right: 10px; z-index: 1000;
     display: flex; flex-direction: column; gap: 8px; max-height: calc(100vh - 100px); overflow-y: auto;
@@ -79,7 +81,7 @@
   .stat .label { font-size: 10px; color: #7A7870; }
   .content-panel {
     padding: 24px; max-width: 1200px; margin: 0 auto;
-    height: calc(100vh - 53px); overflow-y: auto;
+    flex: 1; overflow-y: auto;
   }
   .profile-card {
     background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px;
@@ -242,6 +244,7 @@ function initMap() {
     attribution: '&copy; OSM | CARTO',
     maxZoom: 18,
   }).addTo(map);
+  setTimeout(() => map.invalidateSize(), 200);
 
   const regionNav = document.getElementById('region-nav');
   REGIONS.forEach(r => {
@@ -425,11 +428,6 @@ function initCompMatrix() {
   document.getElementById('comp-container').innerHTML = buildCompMatrixHtml();
 }
 </script>
-
-<div class="footer">
-  Source: FCC Broadband Data Collection J25 (Jun 2025) | Census 2020 (TIGERweb) | Public filings & press releases<br>
-  Data processed for competitive intelligence purposes only. All financial estimates for private companies labeled as such.
-</div>
 
 </body>
 </html>
