@@ -116,11 +116,11 @@
 
 <script>
 const BDC_FILES = {
-  sonic: { file: 'bdc_output/sonic_bdc.js', size: '8 MB' },
-  att: { file: 'bdc_output/att_bdc.js', size: '70 MB' },
-  comcast: { file: 'bdc_output/comcast_bdc.js', size: '17 MB' },
-  frontier: { file: 'bdc_output/frontier_bdc.js', size: '41 MB' },
-  race: { file: 'bdc_output/race_bdc.js', size: '5 MB' },
+  sonic: { file: 'bdc_output/sonic_bdc.js', size: '3.6 MB' },
+  att: { file: 'bdc_output/att_bdc.js', size: '10 MB' },
+  comcast: { file: 'bdc_output/comcast_bdc.js', size: '2.7 MB' },
+  frontier: { file: 'bdc_output/frontier_bdc.js', size: '6.5 MB' },
+  race: { file: 'bdc_output/race_bdc.js', size: '2.3 MB' },
 };
 const bdcData = {};
 const bdcLayers = {};
@@ -257,7 +257,7 @@ function disableLayer(key, btn) {
 function createBdcLayer(geojson, provider) {
   return L.geoJSON(geojson, {
     style: (feature) => {
-      const cov = feature.properties.coveragePct || 0;
+      const cov = feature.properties.c || feature.properties.coveragePct || 0;
       const opacity = Math.min(0.25 + cov / 150, 0.75);
       return {
         fillColor: provider.color,
@@ -301,7 +301,7 @@ function updateStats() {
     const prov = PROVIDERS[key];
     if (!data) return;
     let bsls = 0, hu = 0;
-    data.features.forEach(f => { bsls += f.properties.bsls || 0; hu += f.properties.hu100 || 0; });
+    data.features.forEach(f => { bsls += f.properties.b || f.properties.bsls || 0; hu += f.properties.h || f.properties.hu100 || 0; });
     const cov = hu > 0 ? (bsls / hu * 100).toFixed(1) : 0;
 
     html += `<div class="bg-white rounded-lg border-l-4 p-3 shadow-sm" style="border-left-color:${prov.color}">
