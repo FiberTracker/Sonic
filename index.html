@@ -7,6 +7,30 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="data.js"></script>
+
+<!-- BDC data scripts — loaded in head so vars are global before renderAllBDC -->
+<script>
+function loadBDCScripts() {
+    const files = [
+        'bdc_output/sonic_bdc.js',
+        'bdc_output/att_bdc.js',
+        'bdc_output/frontier_bdc.js',
+        'bdc_output/comcast_bdc.js',
+        'bdc_output/race_bdc.js',
+    ];
+    let loaded = 0;
+    files.forEach(f => {
+        const s = document.createElement('script');
+        s.src = f + '?v=2';
+        s.async = true;
+        s.onload = () => { loaded++; if (loaded === files.length && typeof renderAllBDC === 'function') renderAllBDC(); };
+        s.onerror = () => { loaded++; if (loaded === files.length && typeof renderAllBDC === 'function') renderAllBDC(); };
+        document.head.appendChild(s);
+    });
+}
+</script>
+
 <style>
   body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
   #pw-overlay {
@@ -35,105 +59,89 @@
   .tab-btn:hover:not(.active) { color: #334155; }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
-  .source-tag {
-    font-size: 10px; color: #64748B; background: #F1F5F9; padding: 1px 6px;
-    border-radius: 3px; margin-left: 4px;
-  }
+  .source-tag { font-size: 10px; color: #64748B; background: #F1F5F9; padding: 1px 6px; border-radius: 3px; margin-left: 4px; }
   @media (max-width: 768px) {
-    body { padding: 8px; }
     #map { height: 50vh; min-height: 300px; border-radius: 8px; }
-    .leaflet-popup-content { min-width: 240px; margin: 8px 12px; font-size: 13px; }
   }
 </style>
 </head>
-<body class="bg-gray-50 min-h-screen p-2 md:p-4">
+<body class="bg-gray-100 min-h-screen p-2 md:p-4">
 
 <!-- Password Gate -->
 <div id="pw-overlay">
   <div class="pw-box">
     <h2>Sonic Telecom</h2>
     <p>Fiber Competitive Intelligence</p>
-    <input type="password" id="pw-input" placeholder="Enter access code" autofocus
-      onkeydown="if(event.key==='Enter')checkPw()">
+    <form onsubmit="return checkPw()">
+      <input type="password" id="pw-input" placeholder="Password" autocomplete="off" autofocus />
+      <button type="submit" class="w-full mt-3 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition">Unlock</button>
+    </form>
     <div class="error" id="pw-error">Incorrect code</div>
   </div>
 </div>
 
 <!-- Main App -->
-<div id="app" style="display:none;">
+<div id="app" style="display:none;" class="max-w-[1440px] mx-auto">
 
   <!-- Header -->
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-3">
-    <div class="flex items-center justify-between flex-wrap gap-3">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
       <div>
-        <h1 class="text-xl font-bold text-gray-900">Sonic Telecom <span class="text-sm font-normal text-gray-400">FiberComp</span></h1>
-        <p class="text-xs text-gray-500 mt-1">FCC BDC J25 (Jun 2025) | Census 2020 | Public filings</p>
+        <p class="text-blue-600 text-[10px] font-semibold tracking-widest mb-1">GIS INTELLIGENCE TOOL</p>
+        <h1 class="text-xl font-extrabold text-gray-900">Sonic Telecom <span class="text-sm font-normal text-gray-400">FiberComp — California</span></h1>
+        <p class="text-xs text-gray-500 mt-1">FCC BDC J25 (Jun 2025) · Census 2020 · Public filings · Market intel</p>
       </div>
-      <div class="flex gap-1">
+      <div class="flex gap-1 border-b border-gray-200 pb-1">
         <button class="tab-btn px-3 py-2 text-sm text-gray-500 active" data-tab="map">GIS Map</button>
-        <button class="tab-btn px-3 py-2 text-sm text-gray-500" data-tab="profile">Operator Profiles</button>
-        <button class="tab-btn px-3 py-2 text-sm text-gray-500" data-tab="valuation">Valuation & Comps</button>
-        <button class="tab-btn px-3 py-2 text-sm text-gray-500" data-tab="competitive">Competitive Matrix</button>
+        <button class="tab-btn px-3 py-2 text-sm text-gray-500" data-tab="profile">Profiles</button>
+        <button class="tab-btn px-3 py-2 text-sm text-gray-500" data-tab="valuation">Valuation</button>
+        <button class="tab-btn px-3 py-2 text-sm text-gray-500" data-tab="competitive">Competitive</button>
       </div>
     </div>
   </div>
 
   <!-- MAP TAB -->
   <div class="tab-content active" data-tab="map">
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3" id="stat-cards"></div>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3" id="stat-cards">
+      <div class="col-span-full text-center text-xs text-gray-400 py-2" id="bdcStats">Loading BDC data...</div>
+    </div>
 
-    <!-- Map + Controls -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3">
-      <div class="flex flex-wrap gap-2 mb-3">
-        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide self-center mr-2">BDC Layers</div>
-        <div id="layer-toggles" class="flex flex-wrap gap-2"></div>
-        <div class="ml-auto flex flex-wrap gap-1" id="region-nav"></div>
+      <!-- BDC toggles + region nav -->
+      <div class="flex flex-wrap items-center gap-2 mb-3">
+        <span class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Layers</span>
+        <button onclick="toggleBDCLayer('sonic')" id="btn-sonic" class="px-2.5 py-1 text-xs rounded-md border font-medium transition" style="border-color:#0C7EC6;color:#0C7EC6;background:rgba(12,126,198,0.08)">Sonic</button>
+        <button onclick="toggleBDCLayer('att')" id="btn-att" class="px-2.5 py-1 text-xs rounded-md border border-gray-300 text-gray-400 font-medium transition">AT&T</button>
+        <button onclick="toggleBDCLayer('frontier')" id="btn-frontier" class="px-2.5 py-1 text-xs rounded-md border border-gray-300 text-gray-400 font-medium transition">Frontier</button>
+        <button onclick="toggleBDCLayer('comcast')" id="btn-comcast" class="px-2.5 py-1 text-xs rounded-md border border-gray-300 text-gray-400 font-medium transition">Comcast</button>
+        <button onclick="toggleBDCLayer('race')" id="btn-race" class="px-2.5 py-1 text-xs rounded-md border border-gray-300 text-gray-400 font-medium transition">Race</button>
+        <span class="ml-auto"></span>
+        <span class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Regions</span>
+        <div id="region-nav" class="flex flex-wrap gap-1"></div>
       </div>
       <div id="map"></div>
     </div>
   </div>
 
   <!-- PROFILE TAB -->
-  <div class="tab-content" data-tab="profile">
-    <div id="profiles-container"></div>
-  </div>
-
+  <div class="tab-content" data-tab="profile"><div id="profiles-container"></div></div>
   <!-- VALUATION TAB -->
-  <div class="tab-content" data-tab="valuation">
-    <div id="valuation-container"></div>
-  </div>
-
+  <div class="tab-content" data-tab="valuation"><div id="valuation-container"></div></div>
   <!-- COMPETITIVE TAB -->
-  <div class="tab-content" data-tab="competitive">
-    <div id="comp-container"></div>
-  </div>
-
+  <div class="tab-content" data-tab="competitive"><div id="comp-container"></div></div>
 </div>
 
-<script src="data.js"></script>
-<script src="calculations.js"></script>
-
 <script>
-const BDC_FILES = {
-  sonic: { file: 'bdc_output/sonic_bdc.js', size: '600 KB' },
-  att: { file: 'bdc_output/att_bdc.js', size: '1.5 MB' },
-  comcast: { file: 'bdc_output/comcast_bdc.js', size: '332 KB' },
-  frontier: { file: 'bdc_output/frontier_bdc.js', size: '805 KB' },
-  race: { file: 'bdc_output/race_bdc.js', size: '219 KB' },
-};
-const bdcData = {};
-const bdcLayers = {};
-let map;
-
-/* ---- Password ---- */
+// ============================================
+// PASSWORD
+// ============================================
 function simpleHash(s) {
   var h = 0x5f2a1e3d;
   for (var i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0; }
   return (h >>> 0).toString(16).padStart(8, '0') + h.toString(16).slice(-8);
 }
 function checkPw() {
-  const v = document.getElementById('pw-input').value;
+  var v = document.getElementById('pw-input').value;
   if (simpleHash(v) === '645e2cbf645e2cbf') {
     document.getElementById('pw-overlay').classList.add('hidden');
     document.getElementById('app').style.display = '';
@@ -143,6 +151,7 @@ function checkPw() {
     document.getElementById('pw-error').style.display = 'block';
     document.getElementById('pw-input').value = '';
   }
+  return false;
 }
 if (sessionStorage.getItem('sonic_auth') === '1') {
   document.getElementById('pw-overlay').classList.add('hidden');
@@ -150,316 +159,299 @@ if (sessionStorage.getItem('sonic_auth') === '1') {
   initApp();
 }
 
-/* ---- Init ---- */
+// ============================================
+// GLOBALS
+// ============================================
+var map;
+var bdcLayers = { sonic: L.layerGroup(), att: L.layerGroup(), frontier: L.layerGroup(), comcast: L.layerGroup(), race: L.layerGroup() };
+var bdcActive = { sonic: true, att: false, frontier: false, comcast: false, race: false };
+var PROVIDER_COLORS = { sonic: '#0C7EC6', att: '#00759E', frontier: '#469A6C', comcast: '#4972AC', race: '#879420' };
+var PROVIDER_NAMES = { sonic: 'Sonic Telecom', att: 'AT&T', frontier: 'Frontier', comcast: 'Comcast', race: 'Race Communications' };
+var BDC_VARS = { sonic: 'BDC_SONIC', att: 'BDC_ATT', frontier: 'BDC_FRONTIER', comcast: 'BDC_COMCAST', race: 'BDC_RACE' };
+
+// ============================================
+// INIT
+// ============================================
 function initApp() {
   initMap();
   initTabs();
   initProfiles();
   initValuation();
   initCompMatrix();
-  loadBdcLayers();
+  loadBDCScripts();
 }
 
 function initMap() {
-  map = L.map('map', { zoomControl: true }).setView([37.7749, -122.4194], 10);
+  map = L.map('map').setView([37.7749, -122.4194], 10);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OSM | CARTO',
-    maxZoom: 18,
+    attribution: '&copy; OSM | CARTO', maxZoom: 18,
   }).addTo(map);
-  setTimeout(() => map.invalidateSize(), 200);
+
+  // Add sonic layer by default
+  bdcLayers.sonic.addTo(map);
 
   // Region nav
-  const nav = document.getElementById('region-nav');
-  REGIONS.forEach(r => {
-    const btn = document.createElement('button');
+  var nav = document.getElementById('region-nav');
+  REGIONS.forEach(function(r) {
+    var btn = document.createElement('button');
     btn.className = 'px-2 py-1 text-xs rounded-md bg-gray-100 hover:bg-gray-200 text-gray-600 transition';
     btn.textContent = r.name;
     btn.title = r.desc;
-    btn.addEventListener('click', () => map.flyTo(r.center, r.zoom, { duration: 1 }));
+    btn.onclick = function() { map.flyTo(r.center, r.zoom, { duration: 1 }); };
     nav.appendChild(btn);
   });
+
+  setTimeout(function() { map.invalidateSize(); }, 300);
 }
 
-/* ---- BDC Layers ---- */
-function loadBdcLayers() {
-  const container = document.getElementById('layer-toggles');
-  const order = ['sonic', 'att', 'frontier', 'comcast', 'race'];
+// ============================================
+// BDC RENDERING — matches proven midwest pattern
+// ============================================
+function renderAllBDC() {
+  var allKeys = ['sonic', 'att', 'frontier', 'comcast', 'race'];
 
-  order.forEach(key => {
-    const prov = PROVIDERS[key];
-    if (!prov) return;
-    const info = BDC_FILES[key];
+  allKeys.forEach(function(key) {
+    var varName = BDC_VARS[key];
+    var data = window[varName];
+    if (typeof data === 'undefined' || !data || !data.features) return;
 
-    const btn = document.createElement('button');
-    btn.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition';
-    btn.dataset.key = key;
-    btn.style.borderColor = '#E2E8F0';
-    btn.style.color = '#64748B';
-    btn.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:${prov.color};display:inline-block;"></span>${prov.shortName} <span class="text-gray-400 ml-1">${info.size}</span>`;
-    btn.addEventListener('click', () => toggleLayer(key, btn));
-    container.appendChild(btn);
+    var color = PROVIDER_COLORS[key];
+    var provName = PROVIDER_NAMES[key];
 
-    // Auto-load Sonic + Race (focus providers), preload others
-    if (key === 'sonic') {
-      loadBdcFile(key, btn, true);
-    } else {
-      loadBdcFile(key, btn, false);
-    }
-  });
-}
+    data.features.forEach(function(f) {
+      if (!f.geometry || !f.geometry.coordinates) return;
 
-function loadBdcFile(key, btn, autoEnable) {
-  const info = BDC_FILES[key];
-  const prov = PROVIDERS[key];
+      // Flip coordinates: GeoJSON is [lng,lat], Leaflet L.polygon wants [lat,lng]
+      var coords;
+      if (f.geometry.type === 'MultiPolygon') {
+        coords = f.geometry.coordinates.map(function(p) {
+          return p.map(function(r) {
+            return r.map(function(c) { return [c[1], c[0]]; });
+          });
+        });
+      } else {
+        coords = f.geometry.coordinates.map(function(r) {
+          return r.map(function(c) { return [c[1], c[0]]; });
+        });
+      }
 
-  if (bdcData[key]) {
-    if (autoEnable) enableLayer(key, btn);
-    return;
-  }
+      var cov = f.properties.c || f.properties.coveragePct || 0;
+      var opacity = Math.min(0.2 + (cov / 100) * 0.5, 0.7);
 
-  btn.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:${prov.color};display:inline-block;"></span>${prov.shortName} <span class="text-gray-400 ml-1">loading...</span>`;
-
-  const script = document.createElement('script');
-  script.src = info.file;
-  script.onload = () => {
-    const data = window['BDC_' + key.toUpperCase()];
-    if (data) {
-      bdcData[key] = data;
-      bdcLayers[key] = createBdcLayer(data, prov);
-      btn.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:${prov.color};display:inline-block;"></span>${prov.shortName} <span class="text-gray-400 ml-1">${info.size}</span>`;
-      if (autoEnable) enableLayer(key, btn);
-    }
-  };
-  script.onerror = () => {
-    btn.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:#ccc;display:inline-block;"></span>${prov.shortName} <span class="text-red-400 ml-1">unavailable</span>`;
-    btn.disabled = true;
-  };
-  document.body.appendChild(script);
-}
-
-function enableLayer(key, btn) {
-  if (!bdcLayers[key]) return;
-  bdcLayers[key].addTo(map);
-  const prov = PROVIDERS[key];
-  btn.style.borderColor = prov.color;
-  btn.style.color = prov.color;
-  btn.style.background = prov.color + '10';
-  updateStats();
-}
-
-function disableLayer(key, btn) {
-  if (!bdcLayers[key]) return;
-  map.removeLayer(bdcLayers[key]);
-  btn.style.borderColor = '#E2E8F0';
-  btn.style.color = '#64748B';
-  btn.style.background = '';
-  updateStats();
-}
-
-function createBdcLayer(geojson, provider) {
-  return L.geoJSON(geojson, {
-    style: (feature) => {
-      const cov = feature.properties.c || feature.properties.coveragePct || 0;
-      const opacity = Math.min(0.25 + cov / 150, 0.75);
-      return {
-        fillColor: provider.color,
+      var poly = L.polygon(coords, {
+        color: color,
+        fillColor: color,
         fillOpacity: opacity,
-        color: '#fff',
-        weight: 1,
-        opacity: 0.8,
-      };
-    },
-    onEachFeature: (feature, layer) => {
-      layer.bindPopup(buildBdcPopup(feature, provider.name, provider.color), { maxWidth: 380 });
-    },
+        weight: 0.5,
+        opacity: 0.4,
+      });
+
+      // Popup
+      var hu = f.properties.h || f.properties.hu100 || 0;
+      var pop = f.properties.p || f.properties.pop100 || 0;
+      var bsls = f.properties.b || f.properties.bsls || 0;
+      var covPct = f.properties.c || f.properties.coveragePct || 0;
+      var covColor = covPct > 80 ? '#15803D' : covPct > 40 ? '#92400E' : '#DC2626';
+
+      poly.bindPopup('<div style="font-family:Inter,-apple-system,sans-serif;min-width:280px;">' +
+        '<div style="font-size:10px;color:#64748B;">Census Block Group ' + f.properties.id + '</div>' +
+        '<div style="font-weight:700;font-size:14px;color:' + color + ';margin-bottom:8px;">' + provName + ' — FCC BDC</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">' +
+          '<div style="background:#F1F5F9;padding:6px 8px;border-radius:6px;">' +
+            '<div style="font-size:9px;color:#64748B;">Housing Units</div>' +
+            '<div style="font-weight:700;font-size:16px;color:#0F172A;">' + hu.toLocaleString() + '</div></div>' +
+          '<div style="background:#F1F5F9;padding:6px 8px;border-radius:6px;">' +
+            '<div style="font-size:9px;color:#64748B;">Population</div>' +
+            '<div style="font-weight:700;font-size:16px;color:#0F172A;">' + pop.toLocaleString() + '</div></div>' +
+          '<div style="background:#F1F5F9;padding:6px 8px;border-radius:6px;">' +
+            '<div style="font-size:9px;color:#64748B;">FTTP BSLs</div>' +
+            '<div style="font-weight:700;font-size:16px;color:' + color + ';">' + bsls.toLocaleString() + '</div></div>' +
+          '<div style="background:#F0FDF4;padding:6px 8px;border-radius:6px;">' +
+            '<div style="font-size:9px;color:#64748B;">Coverage</div>' +
+            '<div style="font-weight:700;font-size:16px;color:' + covColor + ';">' + covPct + '%</div></div>' +
+        '</div>' +
+        '<div style="font-size:9px;color:#94A3B8;margin-top:6px;">Source: FCC BDC J25 (Jun 2025) | Census 2020</div>' +
+      '</div>', { maxWidth: 380 });
+
+      bdcLayers[key].addLayer(poly);
+    });
   });
+
+  updateStatCards();
+  document.getElementById('bdcStats').style.display = 'none';
 }
 
-function toggleLayer(key, btn) {
-  if (!bdcData[key]) {
-    loadBdcFile(key, btn, true);
-    return;
-  }
-  if (map.hasLayer(bdcLayers[key])) {
-    disableLayer(key, btn);
+// ============================================
+// STAT CARDS
+// ============================================
+function updateStatCards() {
+  var container = document.getElementById('stat-cards');
+  var html = '';
+  var allKeys = ['sonic', 'att', 'frontier', 'comcast', 'race'];
+
+  allKeys.forEach(function(key) {
+    var data = window[BDC_VARS[key]];
+    if (!data || !data.features) return;
+
+    var bsls = 0, hu = 0;
+    data.features.forEach(function(f) {
+      bsls += f.properties.b || f.properties.bsls || 0;
+      hu += f.properties.h || f.properties.hu100 || 0;
+    });
+    var cov = hu > 0 ? (bsls / hu * 100).toFixed(1) : 0;
+    var color = PROVIDER_COLORS[key];
+    var name = PROVIDER_NAMES[key];
+
+    html += '<div class="bg-white rounded-lg shadow-sm p-3" style="border-left:4px solid ' + color + '">' +
+      '<div class="text-xs text-gray-500">' + name + '</div>' +
+      '<div class="text-lg font-bold" style="color:' + color + '">' + (bsls/1000).toFixed(0) + 'K <span class="text-xs font-normal text-gray-400">BSLs</span></div>' +
+      '<div class="text-xs text-gray-400">' + data.features.length.toLocaleString() + ' areas · ' + cov + '% coverage</div>' +
+    '</div>';
+  });
+
+  container.innerHTML = html;
+}
+
+// ============================================
+// BDC TOGGLE
+// ============================================
+function toggleBDCLayer(key) {
+  bdcActive[key] = !bdcActive[key];
+  var btn = document.getElementById('btn-' + key);
+  var color = PROVIDER_COLORS[key];
+
+  if (bdcActive[key]) {
+    map.addLayer(bdcLayers[key]);
+    btn.style.borderColor = color;
+    btn.style.color = color;
+    btn.style.background = color + '14';
+    btn.classList.remove('text-gray-400', 'border-gray-300');
   } else {
-    enableLayer(key, btn);
+    map.removeLayer(bdcLayers[key]);
+    btn.style.borderColor = '';
+    btn.style.color = '';
+    btn.style.background = '';
+    btn.classList.add('text-gray-400', 'border-gray-300');
   }
 }
 
-/* ---- Stats ---- */
-function updateStats() {
-  const container = document.getElementById('stat-cards');
-  const active = Object.keys(bdcLayers).filter(k => map.hasLayer(bdcLayers[k]));
-
-  if (!active.length) {
-    container.innerHTML = '<div class="col-span-full text-center text-xs text-gray-400 py-2">Click provider buttons to show BDC coverage layers</div>';
-    return;
-  }
-
-  let html = '';
-  active.forEach(key => {
-    const data = bdcData[key];
-    const prov = PROVIDERS[key];
-    if (!data) return;
-    let bsls = 0, hu = 0;
-    data.features.forEach(f => { bsls += f.properties.b || f.properties.bsls || 0; hu += f.properties.h || f.properties.hu100 || 0; });
-    const cov = hu > 0 ? (bsls / hu * 100).toFixed(1) : 0;
-
-    html += `<div class="bg-white rounded-lg border-l-4 p-3 shadow-sm" style="border-left-color:${prov.color}">
-      <div class="text-xs text-gray-500">${prov.shortName} FTTP</div>
-      <div class="text-lg font-bold" style="color:${prov.color}">${(bsls/1000).toFixed(0)}K <span class="text-xs font-normal text-gray-400">BSLs</span></div>
-      <div class="text-xs text-gray-400">${data.features.length.toLocaleString()} BGs · ${cov}% coverage</div>
-    </div>`;
-  });
-  container.innerHTML = html;
-}
-
-/* ---- Tabs ---- */
+// ============================================
+// TABS
+// ============================================
 function initTabs() {
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      document.querySelectorAll('.tab-content').forEach(function(p) { p.classList.remove('active'); });
       btn.classList.add('active');
-      document.querySelector(`.tab-content[data-tab="${btn.dataset.tab}"]`).classList.add('active');
-      if (btn.dataset.tab === 'map') setTimeout(() => map.invalidateSize(), 100);
+      document.querySelector('.tab-content[data-tab="' + btn.dataset.tab + '"]').classList.add('active');
+      if (btn.dataset.tab === 'map') setTimeout(function() { map.invalidateSize(); }, 100);
     });
   });
 }
 
-/* ---- Profile Tab ---- */
+// ============================================
+// PROFILES TAB
+// ============================================
 function initProfiles() {
-  const container = document.getElementById('profiles-container');
-  const order = ['sonic', 'att', 'frontier', 'comcast', 'race'];
-  let html = buildExecHtmlLight();
+  var container = document.getElementById('profiles-container');
+  var order = ['sonic', 'att', 'frontier', 'comcast', 'race'];
+  var html = '';
 
-  order.forEach(key => {
-    const profile = OPERATOR_PROFILES[key];
-    if (profile) html += buildProfileHtmlLight(profile, key);
+  // Executives table
+  html += '<div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-4">' +
+    '<h3 class="text-base font-bold text-gray-900 mb-3">Key Executives — Sonic Telecom</h3>' +
+    '<table class="w-full text-sm"><thead><tr class="border-b border-gray-200">' +
+    '<th class="text-left py-2 text-gray-500 font-medium">Name</th>' +
+    '<th class="text-left py-2 text-gray-500 font-medium">Title</th>' +
+    '<th class="text-left py-2 text-gray-500 font-medium">Notes</th></tr></thead><tbody>';
+  KEY_EXECUTIVES.forEach(function(e) {
+    html += '<tr class="border-b border-gray-100"><td class="py-2 font-semibold text-gray-900">' + e.name + '</td><td class="py-2 text-gray-700">' + e.title + '</td><td class="py-2 text-gray-500">' + e.note + '</td></tr>';
   });
+  html += '</tbody></table></div>';
+
+  // Operator profiles
+  order.forEach(function(key) {
+    var p = OPERATOR_PROFILES[key];
+    if (!p) return;
+    var isSonic = key === 'sonic';
+    var color = PROVIDERS[key] ? PROVIDERS[key].color : '#333';
+
+    html += '<div class="bg-white rounded-xl shadow-sm p-5 mb-4" style="border:' + (isSonic ? '2px' : '1px') + ' solid ' + (isSonic ? color : '#E5E7EB') + '">';
+    html += '<h3 class="text-base font-bold mb-3" style="color:' + color + '">' + p.name + '</h3>';
+    html += '<table class="w-full text-sm">';
+
+    var rows = [
+      ['HQ', p.hq], ['Founded', p.founded], ['Ownership', p.ownership],
+      p.ceo ? ['CEO', p.ceo] : null, p.cfo ? ['CFO', p.cfo] : null,
+      ['Technology', p.technology], ['Max Speed', p.speeds], ['Pricing', p.pricing],
+      p.subscribers ? ['Subscribers', p.subscribers] : null,
+      p.revenue ? ['Revenue', p.revenue] : null,
+      p.ebitda ? ['EBITDA', '~$' + p.ebitda + 'M <span class="source-tag">' + (p.ebitdaSource||'') + '</span>'] : null,
+      p.homesPassedEst ? ['Homes Passed (Est.)', p.homesPassedEst] : null,
+      ['Markets', p.markets],
+    ];
+    rows.forEach(function(r) {
+      if (!r) return;
+      html += '<tr class="border-b border-gray-100"><td class="py-2 text-gray-500 font-medium w-40">' + r[0] + '</td><td class="py-2 text-gray-900">' + r[1] + '</td></tr>';
+    });
+    html += '</table>';
+
+    if (isSonic) {
+      [['Key Differentiators', p.keyDiff], ['Growth Strategy', p.growthStrategy], ['M&A Activity', p.maActivity], ['ABS/Securitization', p.absHistory], ['BEAD', p.beadStatus]].forEach(function(s) {
+        if (s[1]) html += '<div class="mt-3 p-3 bg-gray-50 rounded-lg text-sm text-gray-700"><strong class="text-gray-900">' + s[0] + ':</strong> ' + s[1] + '</div>';
+      });
+    }
+
+    if (p.sources) {
+      html += '<div class="mt-3 text-xs text-gray-500"><strong>Sources:</strong><ul class="mt-1 ml-4 list-disc">';
+      p.sources.forEach(function(s) { html += '<li><a href="' + s.url + '" target="_blank" class="text-blue-600 hover:underline">' + s.text + '</a></li>'; });
+      html += '</ul></div>';
+    }
+    html += '</div>';
+  });
+
   container.innerHTML = html;
 }
 
-function buildExecHtmlLight() {
-  let html = `<div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-4">
-    <h3 class="text-base font-bold text-gray-900 mb-3">Key Executives — Sonic Telecom</h3>
-    <table class="w-full text-sm">
-      <thead><tr class="border-b border-gray-200">
-        <th class="text-left py-2 text-gray-500 font-medium">Name</th>
-        <th class="text-left py-2 text-gray-500 font-medium">Title</th>
-        <th class="text-left py-2 text-gray-500 font-medium">Notes</th>
-      </tr></thead><tbody>`;
-  KEY_EXECUTIVES.forEach(e => {
-    html += `<tr class="border-b border-gray-100"><td class="py-2 font-semibold text-gray-900">${e.name}</td><td class="py-2 text-gray-700">${e.title}</td><td class="py-2 text-gray-500">${e.note}</td></tr>`;
-  });
-  html += `</tbody></table></div>`;
-  return html;
-}
-
-function buildProfileHtmlLight(profile, key) {
-  const isSonic = key === 'sonic';
-  const color = PROVIDERS[key]?.color || '#333';
-  const borderClass = isSonic ? `border-2` : 'border';
-
-  let html = `<div class="bg-white rounded-xl ${borderClass} shadow-sm p-5 mb-4" style="${isSonic ? 'border-color:' + color : 'border-color:#E5E7EB'}">
-    <h3 class="text-base font-bold mb-3" style="color:${color}">${profile.name}</h3>
-    <table class="w-full text-sm">`;
-
-  const rows = [
-    ['HQ', profile.hq],
-    ['Founded', profile.founded],
-    profile.founder ? ['Founder', profile.founder] : null,
-    ['Ownership', profile.ownership],
-    profile.ceo ? ['CEO', profile.ceo] : null,
-    profile.cfo ? ['CFO', profile.cfo] : null,
-    ['Technology', profile.technology],
-    ['Max Speed', profile.speeds],
-    ['Pricing', profile.pricing],
-    profile.subscribers ? ['Subscribers', profile.subscribers] : null,
-    profile.revenue ? ['Revenue', profile.revenue] : null,
-    profile.ebitda ? ['EBITDA', `~$${profile.ebitda}M <span class="source-tag">${profile.ebitdaSource || ''}</span>`] : null,
-    profile.homesPassedEst ? ['Homes Passed (Est.)', profile.homesPassedEst] : null,
-    ['Markets', profile.markets],
-  ].filter(Boolean);
-
-  rows.forEach(([label, value]) => {
-    html += `<tr class="border-b border-gray-100"><td class="py-2 text-gray-500 font-medium w-40">${label}</td><td class="py-2 text-gray-900">${value}</td></tr>`;
-  });
-  html += `</table>`;
-
-  if (isSonic) {
-    const sections = [
-      ['Key Differentiators', profile.keyDiff],
-      ['Growth Strategy', profile.growthStrategy],
-      ['M&A Activity', profile.maActivity],
-      ['ABS/Securitization', profile.absHistory],
-      ['BEAD', profile.beadStatus],
-    ].filter(([, v]) => v);
-
-    sections.forEach(([title, text]) => {
-      html += `<div class="mt-3 p-3 bg-gray-50 rounded-lg text-sm text-gray-700"><strong class="text-gray-900">${title}:</strong> ${text}</div>`;
-    });
-  }
-
-  if (profile.sources) {
-    html += `<div class="mt-3 text-xs text-gray-500"><strong>Sources:</strong><ul class="mt-1 ml-4 list-disc">`;
-    profile.sources.forEach(s => { html += `<li><a href="${s.url}" target="_blank" class="text-blue-600 hover:underline">${s.text}</a></li>`; });
-    html += `</ul></div>`;
-  }
-
-  html += `</div>`;
-  return html;
-}
-
-/* ---- Valuation Tab ---- */
+// ============================================
+// VALUATION TAB
+// ============================================
 function initValuation() {
-  const v = VALUATION_CONTEXT;
-  let html = `<div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-4">
-    <h3 class="text-base font-bold text-amber-700 mb-3">Valuation Context — Sonic Telecom</h3>
-    <table class="w-full text-sm mb-4">
-      <tr class="border-b border-gray-100"><td class="py-2 text-gray-500 font-medium w-40">EBITDA</td><td class="py-2 text-gray-900">~$${v.sonicMetrics.ebitda}M <span class="source-tag">${v.sonicMetrics.ebitdaSource}</span></td></tr>
-      <tr class="border-b border-gray-100"><td class="py-2 text-gray-500 font-medium">Revenue Range</td><td class="py-2 text-gray-900">$${v.sonicMetrics.revenueRange}M <span class="source-tag">${v.sonicMetrics.revenueSource}</span></td></tr>
-      <tr class="border-b border-gray-100"><td class="py-2 text-gray-500 font-medium">Implied Valuation</td><td class="py-2 text-gray-900">$${v.sonicMetrics.impliedValue}M <span class="source-tag">${v.sonicMetrics.impliedSource}</span></td></tr>
-    </table>
-
-    <h4 class="text-sm font-bold text-gray-700 mb-2">Scenario Analysis (at $${v.sonicMetrics.ebitda}M EBITDA)</h4>
-    <table class="w-full text-sm mb-4">
-      <thead><tr class="border-b border-gray-200"><th class="text-left py-2 text-gray-500 font-medium">Scenario</th><th class="text-left py-2 text-gray-500 font-medium">EV ($M)</th></tr></thead>
-      <tbody>`;
-  v.scenarioAnalysis.forEach(s => { html += `<tr class="border-b border-gray-100"><td class="py-2 text-gray-700">${s.label}</td><td class="py-2 font-semibold text-gray-900">$${s.ev}M</td></tr>`; });
-  html += `</tbody></table>
-
-    <h4 class="text-sm font-bold text-gray-700 mb-2">Recent Fiber Comps</h4>
-    <table class="w-full text-sm">
-      <thead><tr class="border-b border-gray-200"><th class="text-left py-2 text-gray-500 font-medium">Transaction</th><th class="text-left py-2 text-gray-500 font-medium">$/HHP</th><th class="text-left py-2 text-gray-500 font-medium">Multiple</th><th class="text-left py-2 text-gray-500 font-medium">Date</th></tr></thead>
-      <tbody>`;
-  v.comps.forEach(c => { html += `<tr class="border-b border-gray-100"><td class="py-2 text-gray-700">${c.deal}</td><td class="py-2 text-gray-900">${c.dollarPerHhp ? '$' + c.dollarPerHhp.toLocaleString() : '—'}</td><td class="py-2 font-semibold text-gray-900">${c.multiple}</td><td class="py-2 text-gray-500">${c.date}</td></tr>`; });
-  html += `</tbody></table>
-    <p class="mt-3 text-xs text-gray-400 italic">Note: Fiber platform valuations have ranged 8-12x EBITDA for scaled operators. At $80M EBITDA, the $475M Getlatka figure implies ~6x — below market, suggesting either stale data or a pre-expansion valuation. All financials are third-party estimates for a private company.</p>
-  </div>`;
+  var v = VALUATION_CONTEXT;
+  var html = '<div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-4">' +
+    '<h3 class="text-base font-bold text-amber-700 mb-3">Valuation Context — Sonic Telecom</h3>' +
+    '<table class="w-full text-sm mb-4">' +
+    '<tr class="border-b border-gray-100"><td class="py-2 text-gray-500 font-medium w-40">EBITDA</td><td class="py-2 text-gray-900">~$' + v.sonicMetrics.ebitda + 'M <span class="source-tag">' + v.sonicMetrics.ebitdaSource + '</span></td></tr>' +
+    '<tr class="border-b border-gray-100"><td class="py-2 text-gray-500 font-medium">Revenue Range</td><td class="py-2 text-gray-900">$' + v.sonicMetrics.revenueRange + 'M <span class="source-tag">' + v.sonicMetrics.revenueSource + '</span></td></tr>' +
+    '<tr class="border-b border-gray-100"><td class="py-2 text-gray-500 font-medium">Implied Valuation</td><td class="py-2 text-gray-900">$' + v.sonicMetrics.impliedValue + 'M <span class="source-tag">' + v.sonicMetrics.impliedSource + '</span></td></tr>' +
+    '</table>' +
+    '<h4 class="text-sm font-bold text-gray-700 mb-2">Scenario Analysis (at $' + v.sonicMetrics.ebitda + 'M EBITDA)</h4>' +
+    '<table class="w-full text-sm mb-4"><thead><tr class="border-b border-gray-200"><th class="text-left py-2 text-gray-500 font-medium">Scenario</th><th class="text-left py-2 text-gray-500 font-medium">EV ($M)</th></tr></thead><tbody>';
+  v.scenarioAnalysis.forEach(function(s) { html += '<tr class="border-b border-gray-100"><td class="py-2 text-gray-700">' + s.label + '</td><td class="py-2 font-semibold text-gray-900">$' + s.ev + 'M</td></tr>'; });
+  html += '</tbody></table>' +
+    '<h4 class="text-sm font-bold text-gray-700 mb-2">Recent Fiber Comps</h4>' +
+    '<table class="w-full text-sm"><thead><tr class="border-b border-gray-200"><th class="text-left py-2 text-gray-500 font-medium">Transaction</th><th class="text-left py-2 text-gray-500 font-medium">$/HHP</th><th class="text-left py-2 text-gray-500 font-medium">Multiple</th><th class="text-left py-2 text-gray-500 font-medium">Date</th></tr></thead><tbody>';
+  v.comps.forEach(function(c) { html += '<tr class="border-b border-gray-100"><td class="py-2 text-gray-700">' + c.deal + '</td><td class="py-2 text-gray-900">' + (c.dollarPerHhp ? '$'+c.dollarPerHhp.toLocaleString() : '—') + '</td><td class="py-2 font-semibold text-gray-900">' + c.multiple + '</td><td class="py-2 text-gray-500">' + c.date + '</td></tr>'; });
+  html += '</tbody></table>' +
+    '<p class="mt-3 text-xs text-gray-400 italic">Note: Fiber platform valuations have ranged 8-12x EBITDA for scaled operators. At $80M EBITDA, the $475M Getlatka figure implies ~6x — below market. All financials are third-party estimates for a private company.</p></div>';
   document.getElementById('valuation-container').innerHTML = html;
 }
 
-/* ---- Competitive Tab ---- */
+// ============================================
+// COMPETITIVE TAB
+// ============================================
 function initCompMatrix() {
-  const m = COMP_MATRIX;
-  let html = `<div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-    <h3 class="text-base font-bold text-gray-900 mb-3">Competitive Comparison</h3>
-    <div class="overflow-x-auto"><table class="w-full text-sm">
-      <thead><tr class="border-b border-gray-200">`;
-  m.headers.forEach(h => { html += `<th class="text-left py-2 px-2 text-gray-500 font-medium">${h}</th>`; });
-  html += `</tr></thead><tbody>`;
-  m.rows.forEach(row => {
-    html += `<tr class="border-b border-gray-100">`;
-    row.forEach((cell, i) => {
-      html += i === 0
-        ? `<td class="py-2 px-2 text-gray-500 font-medium">${cell}</td>`
-        : `<td class="py-2 px-2 text-gray-900">${cell}</td>`;
-    });
-    html += `</tr>`;
+  var m = COMP_MATRIX;
+  var html = '<div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5"><h3 class="text-base font-bold text-gray-900 mb-3">Competitive Comparison</h3><div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b border-gray-200">';
+  m.headers.forEach(function(h) { html += '<th class="text-left py-2 px-2 text-gray-500 font-medium">' + h + '</th>'; });
+  html += '</tr></thead><tbody>';
+  m.rows.forEach(function(row) {
+    html += '<tr class="border-b border-gray-100">';
+    row.forEach(function(cell, i) { html += '<td class="py-2 px-2 ' + (i===0 ? 'text-gray-500 font-medium' : 'text-gray-900') + '">' + cell + '</td>'; });
+    html += '</tr>';
   });
-  html += `</tbody></table></div></div>`;
+  html += '</tbody></table></div></div>';
   document.getElementById('comp-container').innerHTML = html;
 }
 </script>
