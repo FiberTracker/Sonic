@@ -310,29 +310,29 @@ function updateStatCards() {
   });
 
   // Sonic ∩ AT&T overlap card
+  // Note: AT&T BDC is county-level (5-digit FIPS), Sonic is block-group (12-digit).
+  // Match by checking if Sonic's block group falls within an AT&T county.
   var sonicData = window[BDC_VARS['sonic']];
   var attData = window[BDC_VARS['att']];
   if (sonicData && sonicData.features && attData && attData.features) {
-    var sonicIds = {};
-    sonicData.features.forEach(function(f) {
-      sonicIds[f.properties.id] = { bsls: f.properties.b || f.properties.bsls || 0, hu: f.properties.h || f.properties.hu100 || 0 };
-    });
+    // Build set of AT&T county FIPS codes
+    var attCounties = {};
+    attData.features.forEach(function(f) { attCounties[f.properties.id] = true; });
+    // Determine ID granularity — if AT&T IDs are shorter, match by prefix
+    var attIdLen = attData.features[0] ? attData.features[0].properties.id.length : 12;
     var overlapBsls = 0, overlapHu = 0, overlapCount = 0;
     var sonicOnlyBsls = 0, sonicOnlyCount = 0;
-    attData.features.forEach(function(f) {
-      var aid = f.properties.id;
-      if (sonicIds[aid]) {
-        overlapBsls += sonicIds[aid].bsls;
-        overlapHu += sonicIds[aid].hu;
-        overlapCount++;
-      }
-    });
-    // Sonic-only (no AT&T overlap)
-    var attIds = {};
-    attData.features.forEach(function(f) { attIds[f.properties.id] = true; });
     sonicData.features.forEach(function(f) {
-      if (!attIds[f.properties.id]) {
-        sonicOnlyBsls += f.properties.b || f.properties.bsls || 0;
+      var sid = f.properties.id;
+      var matchKey = sid.substring(0, attIdLen);
+      var bsls = f.properties.b || f.properties.bsls || 0;
+      var hu = f.properties.h || f.properties.hu100 || 0;
+      if (attCounties[matchKey]) {
+        overlapBsls += bsls;
+        overlapHu += hu;
+        overlapCount++;
+      } else {
+        sonicOnlyBsls += bsls;
         sonicOnlyCount++;
       }
     });
