@@ -5,7 +5,7 @@ const PROVIDERS = {
   sonic: {
     id: '190425',
     name: 'Sonic Telecom',
-    color: '#0C7EC6',
+    color: '#DC2626',
     shortName: 'Sonic',
   },
   att: {

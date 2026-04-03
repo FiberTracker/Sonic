@@ -1,0 +1,42 @@
+{
+  "att": {
+    "name": "AT&T",
+    "total_bsls": 2172724,
+    "total_hu": 7358544,
+    "total_pop": 20258026,
+    "block_groups": 12904,
+    "overall_coverage": 29.5
+  },
+  "frontier": {
+    "name": "Frontier",
+    "total_bsls": 1791083,
+    "total_hu": 3223702,
+    "total_pop": 9118423,
+    "block_groups": 5649,
+    "overall_coverage": 55.6
+  },
+  "comcast": {
+    "name": "Comcast",
+    "total_bsls": 19997,
+    "total_hu": 1413102,
+    "total_pop": 3576426,
+    "block_groups": 2216,
+    "overall_coverage": 1.4
+  },
+  "sonic": {
+    "name": "Sonic Telecom",
+    "total_bsls": 369397,
+    "total_hu": 940888,
+    "total_pop": 2431166,
+    "block_groups": 1744,
+    "overall_coverage": 39.3
+  },
+  "race": {
+    "name": "Race Communications",
+    "total_bsls": 123641,
+    "total_hu": 218143,
+    "total_pop": 607149,
+    "block_groups": 370,
+    "overall_coverage": 56.7
+  }
+}
