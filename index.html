@@ -18,6 +18,7 @@ function loadBDCScripts() {
         'bdc_output/frontier_bdc.js',
         'bdc_output/comcast_bdc.js',
         'bdc_output/race_bdc.js',
+        'bdc_output/overlap_data.js',
     ];
     let loaded = 0;
     files.forEach(f => {
@@ -253,9 +254,30 @@ function renderAllBDC() {
       var covPct = f.properties.c || f.properties.coveragePct || 0;
       var covColor = covPct > 80 ? '#15803D' : covPct > 40 ? '#92400E' : '#DC2626';
 
+      // Build competitor overlap line for Sonic popups
+      var compLine = '';
+      if (key === 'sonic' && window.OVERLAP_DATA && window.OVERLAP_DATA.bg_competitors) {
+        var bgId = f.properties.id;
+        var comp = window.OVERLAP_DATA.bg_competitors[bgId];
+        if (comp) {
+          var compNames = [];
+          if (comp.indexOf('a') >= 0) compNames.push('<span style="color:#00759E;font-weight:700;">AT&T</span>');
+          if (comp.indexOf('f') >= 0) compNames.push('<span style="color:#469A6C;font-weight:700;">Frontier</span>');
+          if (comp.indexOf('c') >= 0) compNames.push('<span style="color:#4972AC;font-weight:700;">Comcast</span>');
+          compLine = '<div style="background:#FEF2F2;padding:6px 8px;border-radius:6px;border:1px solid #FECACA;margin-bottom:8px;">' +
+            '<div style="font-size:9px;color:#991B1B;font-weight:600;">FIBER COMPETITION IN THIS BLOCK GROUP</div>' +
+            '<div style="font-size:12px;margin-top:2px;">' + compNames.join(' · ') + '</div></div>';
+        } else {
+          compLine = '<div style="background:#F0FDF4;padding:6px 8px;border-radius:6px;border:1px solid #BBF7D0;margin-bottom:8px;">' +
+            '<div style="font-size:9px;color:#166534;font-weight:600;">NO FIBER COMPETITION</div>' +
+            '<div style="font-size:11px;color:#15803D;margin-top:2px;">Sonic is the only FTTP provider here</div></div>';
+        }
+      }
+
       poly.bindPopup('<div style="font-family:Inter,-apple-system,sans-serif;min-width:280px;">' +
         '<div style="font-size:10px;color:#64748B;">Census Block Group ' + f.properties.id + '</div>' +
         '<div style="font-weight:700;font-size:14px;color:' + color + ';margin-bottom:8px;">' + provName + ' — FCC BDC</div>' +
+        compLine +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">' +
           '<div style="background:#F1F5F9;padding:6px 8px;border-radius:6px;">' +
             '<div style="font-size:9px;color:#64748B;">Housing Units</div>' +
@@ -309,52 +331,28 @@ function updateStatCards() {
     '</div>';
   });
 
-  // Sonic ∩ AT&T overlap card
-  // Note: AT&T BDC is county-level (5-digit FIPS), Sonic is block-group (12-digit).
-  // Match by checking if Sonic's block group falls within an AT&T county.
-  var sonicData = window[BDC_VARS['sonic']];
-  var attData = window[BDC_VARS['att']];
-  if (sonicData && sonicData.features && attData && attData.features) {
-    // Build set of AT&T county FIPS codes
-    var attCounties = {};
-    attData.features.forEach(function(f) { attCounties[f.properties.id] = true; });
-    // Determine ID granularity — if AT&T IDs are shorter, match by prefix
-    var attIdLen = attData.features[0] ? attData.features[0].properties.id.length : 12;
-    var overlapBsls = 0, overlapHu = 0, overlapCount = 0;
-    var sonicOnlyBsls = 0, sonicOnlyCount = 0;
-    sonicData.features.forEach(function(f) {
-      var sid = f.properties.id;
-      var matchKey = sid.substring(0, attIdLen);
-      var bsls = f.properties.b || f.properties.bsls || 0;
-      var hu = f.properties.h || f.properties.hu100 || 0;
-      if (attCounties[matchKey]) {
-        overlapBsls += bsls;
-        overlapHu += hu;
-        overlapCount++;
-      } else {
-        sonicOnlyBsls += bsls;
-        sonicOnlyCount++;
-      }
-    });
-    var sonicTotal = 0;
-    sonicData.features.forEach(function(f) { sonicTotal += f.properties.b || f.properties.bsls || 0; });
-    var overlapPct = sonicTotal > 0 ? (overlapBsls / sonicTotal * 100).toFixed(1) : 0;
-
+  // Sonic ∩ AT&T overlap card — precomputed from raw BDC CSVs at block-group level
+  var ov = window.OVERLAP_DATA;
+  if (ov) {
     html += '<div class="col-span-2 md:col-span-full bg-gradient-to-r from-red-50 to-blue-50 rounded-lg shadow-sm p-4 border border-red-200">' +
       '<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">' +
         '<div>' +
-          '<div class="text-xs font-semibold text-gray-500 mb-1">SONIC ∩ AT&T OVERLAP</div>' +
-          '<div class="text-2xl font-extrabold text-gray-900">' + overlapBsls.toLocaleString() + ' <span class="text-sm font-normal text-gray-500">BSLs overlapped</span></div>' +
-          '<div class="text-xs text-gray-500 mt-1">' + overlapCount.toLocaleString() + ' census block groups · ' + overlapHu.toLocaleString() + ' housing units</div>' +
+          '<div class="text-xs font-semibold text-gray-500 mb-1">SONIC ∩ AT&T FIBER OVERLAP — Block Group Level</div>' +
+          '<div class="text-2xl font-extrabold text-gray-900">' + ov.att_overlap_bsls.toLocaleString() + ' <span class="text-sm font-normal text-gray-500">Sonic BSLs overlapped by AT&T FTTP</span></div>' +
+          '<div class="text-xs text-gray-500 mt-1">' + ov.att_overlap_bgs.toLocaleString() + ' of ' + ov.sonic_total_bgs.toLocaleString() + ' block groups · Source: FCC BDC J25 raw location data</div>' +
         '</div>' +
         '<div class="flex gap-4">' +
           '<div class="text-center">' +
-            '<div class="text-xl font-bold text-red-600">' + overlapPct + '%</div>' +
+            '<div class="text-xl font-bold text-red-600">' + ov.att_overlap_pct + '%</div>' +
             '<div class="text-[10px] text-gray-500">of Sonic BSLs<br>face AT&T fiber</div>' +
           '</div>' +
           '<div class="text-center">' +
-            '<div class="text-xl font-bold text-green-600">' + sonicOnlyBsls.toLocaleString() + '</div>' +
+            '<div class="text-xl font-bold text-green-600">' + ov.sonic_only_bsls.toLocaleString() + '</div>' +
             '<div class="text-[10px] text-gray-500">Sonic-only BSLs<br>(no AT&T fiber)</div>' +
+          '</div>' +
+          '<div class="text-center">' +
+            '<div class="text-xl font-bold text-emerald-700">' + ov.no_comp_bsls.toLocaleString() + '</div>' +
+            '<div class="text-[10px] text-gray-500">No fiber<br>competition</div>' +
           '</div>' +
         '</div>' +
       '</div>' +

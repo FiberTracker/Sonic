@@ -1,0 +1,31 @@
+{
+  "sonic": {
+    "total_block_groups": 1744,
+    "total_bsls": 369397,
+    "total_hu": 0
+  },
+  "att": {
+    "total_block_groups": 12904,
+    "total_bsls": 2172724
+  },
+  "sonic_att_overlap": {
+    "block_groups": 1543,
+    "sonic_bsls_in_overlap": 348203,
+    "hu_in_overlap": 0,
+    "pct_of_sonic_bsls": 94.3
+  },
+  "sonic_only": {
+    "block_groups": 201,
+    "bsls": 21194,
+    "hu": 0
+  },
+  "sonic_frontier_overlap": {
+    "block_groups": 0,
+    "sonic_bsls_in_overlap": 0
+  },
+  "sonic_no_fiber_competition": {
+    "block_groups": 159,
+    "bsls": 18351,
+    "hu": 0
+  }
+}
